@@ -23,7 +23,7 @@ const taskSchema = new mongoose.Schema(
     assignee: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      // required: true,
     },
     reporter: {
       type: mongoose.Schema.Types.ObjectId,
@@ -33,7 +33,7 @@ const taskSchema = new mongoose.Schema(
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
-      required: true,
+      // required: true,
     },
   },
   {

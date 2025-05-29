@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Board } from "../models/board";
 import { Organization } from "../models/organization";
+import { Task } from "../models/task";
 
 export const getBoards = async (req: Request, res: Response) => {
   try {
@@ -30,7 +31,6 @@ export const getBoards = async (req: Request, res: Response) => {
   }
 };
 
-// Get board by ID
 export const getBoardById = async (
   req: Request,
   res: Response
@@ -38,32 +38,47 @@ export const getBoardById = async (
   try {
     const { id } = req.params;
 
-    const board = await Board.findById(id).populate({
-      path: "columns",
-      populate: {
-        path: "tasks",
-        model: "Task",
-        populate: [
-          {
-            path: "assignee",
-            model: "User",
-            select: "name email",
-          },
-          {
-            path: "reporter",
-            model: "User",
-            select: "name email",
-          },
-        ],
-      },
-    });
+    const board = await Board.findById(id).populate("organizationId", "name");
 
     if (!board) {
       res.status(404).json({ message: "Board not found" });
       return;
     }
 
-    res.status(200).json(board);
+    const boardObject = board.toObject();
+
+    const taskIds: string[] = [];
+    for (const column of boardObject.columns) {
+      if (column.tasks && column.tasks.length > 0) {
+        column.tasks.forEach((taskId: any) => {
+          taskIds.push(taskId.toString());
+        });
+      }
+    }
+
+    if (taskIds.length > 0) {
+      const tasks = await Task.find({ _id: { $in: taskIds } })
+        .populate("assignee", "name email")
+        .populate("reporter", "name email");
+
+      const taskMap: Record<string, any> = {};
+      tasks.forEach((task) => {
+        taskMap[task._id.toString()] = task;
+      });
+
+      for (const column of boardObject.columns) {
+        if (column.tasks && column.tasks.length > 0) {
+          column.tasks = column.tasks.map((taskId: any) => {
+            const taskIdStr = taskId.toString();
+            return taskMap[taskIdStr] || taskId;
+          });
+        }
+      }
+    }
+
+    boardObject.columns.sort((a: any, b: any) => a.order - b.order);
+
+    res.status(200).json(boardObject);
   } catch (error) {
     console.error("Error fetching board:", error);
     res
@@ -72,7 +87,6 @@ export const getBoardById = async (
   }
 };
 
-// Create a new board
 export const createBoard = async (
   req: Request,
   res: Response
@@ -111,7 +125,6 @@ export const createBoard = async (
   }
 };
 
-// Update a board
 export const updateBoard = async (
   req: Request,
   res: Response
@@ -142,7 +155,6 @@ export const updateBoard = async (
   }
 };
 
-// Delete a board
 export const deleteBoard = async (
   req: Request,
   res: Response
@@ -174,7 +186,6 @@ export const deleteBoard = async (
   }
 };
 
-// Add a column to board
 export const addColumn = async (req: Request, res: Response): Promise<void> => {
   try {
     const { boardId } = req.params;
@@ -216,7 +227,6 @@ export const addColumn = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// Update column
 export const updateColumn = async (
   req: Request,
   res: Response
@@ -256,7 +266,6 @@ export const updateColumn = async (
   }
 };
 
-// Delete column
 export const deleteColumn = async (
   req: Request,
   res: Response
@@ -303,7 +312,6 @@ export const deleteColumn = async (
   }
 };
 
-// Reorder columns
 export const reorderColumns = async (
   req: Request,
   res: Response

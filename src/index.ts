@@ -17,6 +17,7 @@ const main = async () => {
   const dbConnected = await connectDB();
   if (!dbConnected) {
     console.error("Database connection failed. Exiting application.");
+    process.exit(1);
   }
   await initializeServer();
 };
@@ -36,8 +37,8 @@ const initializeServer = async () => {
   // API Routes
   app.use("/api/auth", authRoutes);
   app.use("/api/tasks", taskRoutes);
-  app.use("/api/column", boardRoutes);
-  app.use("/api/board", columnRoutes);
+  app.use("/api/board", boardRoutes);
+  app.use("/api/column", columnRoutes);
   app.use("/api/organization", organizationRoutes);
 
   app.listen(PORT, () => {

@@ -21,6 +21,8 @@ router.get("/profile", authController.getProfile);
 
 router.get("/search", userController.searchUsers);
 
+router.get("/users", userController.getAllUsers);
+
 router.get("/:id", userController.getUserById);
 
 export default router;

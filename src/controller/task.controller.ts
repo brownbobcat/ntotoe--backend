@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Task } from "../models/task";
 import { Column } from "../models/column";
+import { Board } from "../models/board";
 
 // Get all tasks for an organization
 export const getTasks = async (req: Request, res: Response) => {
@@ -70,7 +71,6 @@ export const createTask = async (req: Request, res: Response) => {
       columnId,
     } = req.body;
 
-    // Create and save the new task
     const newTask = new Task({
       title,
       description,
@@ -83,14 +83,22 @@ export const createTask = async (req: Request, res: Response) => {
 
     const savedTask = await newTask.save();
 
-    // If columnId is provided, add the task to the column
     if (columnId) {
-      await Column.findByIdAndUpdate(columnId, {
-        $push: { tasks: savedTask._id },
-      });
+      const result = await Board.updateOne(
+        { "columns._id": columnId },
+        { $push: { "columns.$.tasks": savedTask._id } }
+      );
+
+      if (result.modifiedCount === 0) {
+        console.warn(
+          "Failed to add task to column. Column may not exist:",
+          columnId
+        );
+      } else {
+        console.log("Task added to column successfully");
+      }
     }
 
-    // Return the new task with populated fields
     const populatedTask = await Task.findById(savedTask._id)
       .populate("assignee", "name email")
       .populate("reporter", "name email");
@@ -114,7 +122,6 @@ export const updateTask = async (
     const { title, description, status, priority, assignee, columnId } =
       req.body;
 
-    // Find current task
     const task = await Task.findById(id);
 
     if (!task) {
@@ -122,23 +129,28 @@ export const updateTask = async (
       return;
     }
 
-    // If status is changing and columnId is provided, move task between columns
     if (status && status !== task.status && columnId) {
-      // Find current column containing the task
-      const currentColumn = await Column.findOne({ tasks: id });
+      const sourceBoard = await Board.findOne({ "columns.tasks": id });
 
-      if (currentColumn) {
-        // Remove task from current column
-        await Column.findByIdAndUpdate(currentColumn._id, {
-          $pull: { tasks: id },
-        });
+      if (sourceBoard) {
+        const sourceColumn = sourceBoard.columns.find((col) =>
+          col.tasks.some((taskId) => taskId.toString() === id)
+        );
+
+        if (sourceColumn) {
+          await Board.updateOne(
+            { _id: sourceBoard._id, "columns._id": sourceColumn._id },
+            { $pull: { "columns.$.tasks": id } }
+          );
+        }
       }
 
-      // Add task to new column
-      await Column.findByIdAndUpdate(columnId, { $push: { tasks: id } });
+      await Board.updateOne(
+        { "columns._id": columnId },
+        { $push: { "columns.$.tasks": id } }
+      );
     }
 
-    // Update task fields
     const updateData: any = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
@@ -146,7 +158,6 @@ export const updateTask = async (
     if (priority !== undefined) updateData.priority = priority;
     if (assignee !== undefined) updateData.assignee = assignee;
 
-    // Update the task
     const updatedTask = await Task.findByIdAndUpdate(
       id,
       { $set: updateData },
@@ -172,7 +183,6 @@ export const deleteTask = async (
   try {
     const { id } = req.params;
 
-    // Find the task
     const task = await Task.findById(id);
 
     if (!task) {
@@ -180,10 +190,11 @@ export const deleteTask = async (
       return;
     }
 
-    // Remove task from any column that contains it
-    await Column.updateMany({ tasks: id }, { $pull: { tasks: id } });
+    await Board.updateMany(
+      { "columns.tasks": id },
+      { $pull: { "columns.$[].tasks": id } }
+    );
 
-    // Delete the task
     await Task.findByIdAndDelete(id);
 
     res.status(200).json({ message: "Task deleted successfully" });

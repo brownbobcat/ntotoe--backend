@@ -10,7 +10,7 @@ export const getUserOrganizations = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
 
     const user = await User.findById(userId).populate("organizations");
 
@@ -35,7 +35,7 @@ export const getOrganizationById = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
 
     const organization = await Organization.findById(id)
       .populate("members", "name email role")
@@ -74,7 +74,7 @@ export const createOrganization = async (
 ): Promise<void> => {
   try {
     const { name } = req.body;
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
 
     // Create organization
     const newOrganization = new Organization({
@@ -129,7 +129,7 @@ export const updateOrganization = async (
   try {
     const { id } = req.params;
     const { name } = req.body;
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
 
     // Find the organization
     const organization = await Organization.findById(id);
@@ -176,7 +176,7 @@ export const deleteOrganization = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
 
     // Find the organization
     const organization = await Organization.findById(id);
@@ -187,7 +187,7 @@ export const deleteOrganization = async (
     }
 
     // Check user is an admin or created the organization
-    const userRole = (req as any).user.role;
+    const userRole = (req as any).role;
 
     if (userRole !== "admin") {
       res
@@ -228,7 +228,7 @@ export const addMember = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { email } = req.body;
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
 
     // Find the organization
     const organization = await Organization.findById(id);
@@ -295,7 +295,7 @@ export const removeMember = async (
 ): Promise<void> => {
   try {
     const { id, memberId } = req.params;
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
 
     // Find the organization
     const organization = await Organization.findById(id);
@@ -306,7 +306,7 @@ export const removeMember = async (
     }
 
     // Verify current user is a member with admin role
-    const currentUserRole = (req as any).user.role;
+    const currentUserRole = (req as any).role;
 
     if (currentUserRole !== "admin" && userId !== memberId) {
       res.status(403).json({
@@ -351,7 +351,7 @@ export const getOrganizationMembers = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user.userId;
+    const userId = req.userId;
 
     // Find the organization
     const organization = await Organization.findById(id).populate(

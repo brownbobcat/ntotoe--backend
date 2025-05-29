@@ -22,22 +22,30 @@ export const auth = async (
     const authHeader = req.header("Authorization");
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      res.status(401).json({ message: "Authentication required" });
+      res
+        .status(401)
+        .json({ message: "Authentication required - No Bearer token" });
       return;
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const payload = validateAuthToken<JWTPayload>(token);
 
-    const user = await User.findById(payload.userId).select("-password");
-    if (!user) {
-      res.status(401).json({ message: "User not found or token invalid" });
+    try {
+      const payload = validateAuthToken<JWTPayload>(token);
+
+      const user = await User.findById(payload.userId).select("-password");
+      if (!user) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      req.user = user;
+      req.userId = user._id.toString();
+      next();
+    } catch (tokenError) {
+      res.status(401).json({ message: "Token validation failed" });
       return;
     }
-
-    req.user = user;
-    req.userId = user._id.toString();
-    next();
   } catch (error) {
     if (error instanceof InvalidAuthTokenError) {
       res.status(401).json({ message: error.message });
